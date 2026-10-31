@@ -1,0 +1,1839 @@
+import React, { useState, useMemo } from 'react';
+import { 
+  Search, Heart, User, Shield, Trophy, Activity, MessageSquare, 
+  Tv, Eye, ChevronRight, ArrowLeft, Plus, ExternalLink, Calendar, 
+  MapPin, CheckCircle, Info, Filter, Sparkles, BookOpen, FileText,
+  UserCheck, Award, Zap, Sliders, Hash, Trash2, Tag, Share2
+} from 'lucide-react';
+
+export type InfoType = 'Official' | 'Statistic' | 'Interview' | 'Observation' | 'Analysis' | 'Quote' | 'Media';
+
+export interface SourceInfo {
+  sourceName?: string;
+  sourceUrl?: string;
+  publishedDate?: string;
+  infoType: InfoType;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  nameEn: string;
+  sportId: string;
+  photo: string;
+  birthDate: string;
+  birthPlace: string;
+  height: number; // cm
+  weight?: number; // kg
+  position: string;
+  dominantHand: string;
+  nationality: string;
+  currentTeamId: string;
+  number: number;
+  career: { period: string; teamName: string; note?: string }[];
+  achievements: string[];
+  stats: {
+    points: number;
+    spikeSuccessRate: number; // %
+    blockPoints: number;
+    serveEfficiency: number; // %
+    receptionRate: number; // %
+  };
+  playStyle: {
+    keyStrengths: string[];
+    attack: string;
+    defense: string;
+    serve: string;
+    mindset: string;
+  };
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  nameEn: string;
+  logo: string;
+  sportId: string;
+  location: string;
+  league: string;
+  headCoachId: string;
+  established: string;
+  titles: string[];
+  teamStyle: {
+    attack: string;
+    defense: string;
+    serveBlock: string;
+    transition: string;
+  };
+}
+
+export interface Coach {
+  id: string;
+  name: string;
+  nameEn: string;
+  photo: string;
+  sportId: string;
+  birthDate: string;
+  nationality: string;
+  currentTeamId?: string;
+  coachingCareer: { period: string; role: string; teamName: string }[];
+  tacticalStyle: string;
+  coachingPhilosophy: string;
+}
+
+export interface MatchLog {
+  id: string;
+  matchId: string;
+  playerId?: string;
+  period: string; // e.g. "第2セット 18-16"
+  description: string;
+  type: 'KeyPlay' | 'TacticalNote' | 'TurningPoint';
+}
+
+export interface Match {
+  id: string;
+  competition: string;
+  date: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeScore: number;
+  awayScore: number;
+  setScores: string;
+  playerStats: {
+    playerId: string;
+    points: number;
+    spikeSuccess: string;
+    serviceAces: number;
+    notes: string;
+  }[];
+  logs: MatchLog[];
+}
+
+export interface Observation {
+  id: string;
+  targetType: 'Player' | 'Team' | 'Coach';
+  targetId: string;
+  content: string;
+  infoType: InfoType;
+  sourceName?: string;
+  sourceUrl?: string;
+  authorOrSpeaker?: string;
+  date: string;
+}
+
+const INITIAL_PLAYERS: Player[] = [
+  {
+    id: 'p-ishikawa',
+    name: '石川 祐希',
+    nameEn: 'Yuki Ishikawa',
+    sportId: 'volleyball',
+    photo: 'https://images.unsplash.com/photo-1592656094267-764a45160876?auto=format&fit=crop&w=600&q=80',
+    birthDate: '1995-12-11',
+    birthPlace: '愛知県岡崎市',
+    height: 192,
+    weight: 84,
+    position: 'アウトサイドヒッター',
+    dominantHand: '右',
+    nationality: '日本',
+    currentTeamId: 't-perugia',
+    number: 14,
+    career: [
+      { period: '2011-2014', teamName: '星城高校' },
+      { period: '2014-2018', teamName: '中央大学' },
+      { period: '2014-2015', teamName: 'モデナ (イタリア)' },
+      { period: '2020-2024', teamName: 'パワーバレー・ミラノ (イタリア)' },
+      { period: '2024-', teamName: 'サー・サフェーチ・ペルージャ (イタリア)' }
+    ],
+    achievements: [
+      '2023年 ネーションズリーグ 銅メダル (ベストアウトサイドヒッター)',
+      '2023年 アジア選手権 優勝 (MVP)',
+      'セリエA 2022-23 ベスト7'
+    ],
+    stats: {
+      points: 432,
+      spikeSuccessRate: 51.4,
+      blockPoints: 38,
+      serveEfficiency: 14.8,
+      receptionRate: 62.1
+    },
+    playStyle: {
+      keyStrengths: ['ハイセットからの空中戦', 'ハイブリッドサーブ', 'パイプ攻撃 (バックアタック)'],
+      attack: '相手ブロックの枚数と位置を空中でのタメで極限まで見極め、インナー・ストレート・ブロックアウトを巧みに打ち分ける。',
+      defense: 'リセプションの返球率が高く、崩された姿勢からでも即座に攻撃助走へ入れるボディコントロールを有する。',
+      serve: '時速120km超の強力なジャンプサーブと、手元で急激に落ちるフローターサーブを同じフォームから打ち分ける。',
+      mindset: '終盤の20点以降でギアを上げ、打球が集まる局面で最も高い決定率を記録するエースとしての強心臓。'
+    }
+  },
+  {
+    id: 'p-takahashi',
+    name: '高橋 藍',
+    nameEn: 'Ran Takahashi',
+    sportId: 'volleyball',
+    photo: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=600&q=80',
+    birthDate: '2001-09-02',
+    birthPlace: '京都府京都市',
+    height: 188,
+    weight: 78,
+    position: 'アウトサイドヒッター',
+    dominantHand: '右',
+    nationality: '日本',
+    currentTeamId: 't-suntory',
+    number: 12,
+    career: [
+      { period: '2017-2020', teamName: '東山高校' },
+      { period: '2020-2024', teamName: '日本体育大学' },
+      { period: '2021-2024', teamName: 'パドヴァ (イタリア)' },
+      { period: '2024-', teamName: 'サントリーサンバーズ大阪' }
+    ],
+    achievements: ['2023年 ネーションズリーグ 銅メダル', '2020年 春高バレー 優勝 (MVP)'],
+    stats: {
+      points: 310,
+      spikeSuccessRate: 48.2,
+      blockPoints: 24,
+      serveEfficiency: 11.2,
+      receptionRate: 68.5
+    },
+    playStyle: {
+      keyStrengths: ['世界屈指の守備力', 'フェイント・フェイクセット', 'パイプ攻撃'],
+      attack: 'リベロ並みのレシーブから即座に攻撃に参加。バックアタックの切り替えスピードが速い。',
+      defense: '相手のアタックラインを完璧に読み、強打を正面で吸収するディグ精度。',
+      serve: 'コントロール重視のジャンプサーブで相手リベロを外したゾーンを狙い撃つ。',
+      mindset: 'トリッキーなプレーでチームの雰囲気を一変させる高いコート上のIQ。'
+    }
+  }
+];
+
+const INITIAL_TEAMS: Team[] = [
+  {
+    id: 't-perugia',
+    name: 'サー・サフェーチ・ペルージャ',
+    nameEn: 'Sir Susa Vim Perugia',
+    logo: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=200&q=80',
+    sportId: 'volleyball',
+    location: 'イタリア・ペルージャ',
+    league: 'セリエA SuperLega',
+    headCoachId: 'c-lorenzetti',
+    established: '2001年',
+    titles: ['セリエA 優勝 (2回)', '世界クラブ選手権 優勝 (2回)', 'コッパ・イタリア 優勝 (3回)'],
+    teamStyle: {
+      attack: 'サーブ権獲得時のブレイク率が世界最高峰。圧倒的な個の打開力によるハイセット消化能力。',
+      defense: '高いブロック壁（リードブロック）で相手のコースを絞り、奥深くに配置したディグで拾い上げる。',
+      serveBlock: '全員がリスクを冒すパワフルなサーブで相手ファーストテンポを完全に潰すスタイル。',
+      transition: 'ラリー中のトスアップ精度が高く、どのローテーションからでもバックアタックを発動可能。'
+    }
+  },
+  {
+    id: 't-suntory',
+    name: 'サントリーサンバーズ大阪',
+    nameEn: 'Suntory Sunbirds Osaka',
+    logo: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=200&q=80',
+    sportId: 'volleyball',
+    location: '日本・大阪府',
+    league: 'SV.LEAGUE',
+    headCoachId: 'c-tillie',
+    established: '1973年',
+    titles: ['V.LEAGUE 優勝 (9回)', 'アジアクラブ選手権 優勝'],
+    teamStyle: {
+      attack: '高さと高精度なサイドアウトの融合。トス配分のバランスが非常に取れている。',
+      defense: '組織的なブロック＆ディグ（トータルディフェンス）の徹底。',
+      serveBlock: 'ターゲットを絞った戦略的タクティカルサーブ。',
+      transition: 'セッターからの迅速なBクイック・パイプ攻撃への展開。'
+    }
+  }
+];
+
+const INITIAL_COACHES: Coach[] = [
+  {
+    id: 'c-lorenzetti',
+    name: 'アンジェロ・ロレンゼッティ',
+    nameEn: 'Angelo Lorenzetti',
+    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
+    sportId: 'volleyball',
+    birthDate: '1964-05-11',
+    nationality: 'イタリア',
+    currentTeamId: 't-perugia',
+    coachingCareer: [
+      { period: '2012-2016', role: '監督', teamName: 'モデナ' },
+      { period: '2016-2023', role: '監督', teamName: 'トレンティーノ' },
+      { period: '2023-', role: '監督', teamName: 'ペルージャ' }
+    ],
+    tacticalStyle: '選手の個性を戦術システムの中に当てはめる柔軟な戦術家。特にブレイク率を高めるブロックシステムの構築に定評がある。',
+    coachingPhilosophy: '「個人の能力向上なくしてチームの戦術的進化はない」。精神論ではなくデータと論理に基づいた指導。'
+  },
+  {
+    id: 'c-tillie',
+    name: 'ロラン・ティリ',
+    nameEn: 'Laurent Tillie',
+    photo: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
+    sportId: 'volleyball',
+    birthDate: '1961-12-01',
+    nationality: 'フランス',
+    currentTeamId: 't-suntory',
+    coachingCareer: [
+      { period: '2012-2021', role: '監督', teamName: 'フランス男子代表' },
+      { period: '2020-', role: '監督', teamName: 'サントリーサンバーズ' }
+    ],
+    tacticalStyle: 'フランス代表を東京五輪金メダルに導いたディフェンスとスマートな繋ぎのバレーを仕込んだ名将。',
+    coachingPhilosophy: 'ミスを恐れないクリエイティブなプレーと、泥臭い守備の共存。'
+  }
+];
+
+const INITIAL_MATCHES: Match[] = [
+  {
+    id: 'm-2026-01',
+    competition: 'セリエA レギュラーシーズン 第12節',
+    date: '2026-02-15',
+    homeTeamId: 't-perugia',
+    awayTeamId: 't-suntory',
+    homeScore: 3,
+    awayScore: 1,
+    setScores: '25-22, 23-25, 25-19, 25-21',
+    playerStats: [
+      {
+        playerId: 'p-ishikawa',
+        points: 22,
+        spikeSuccess: '54.5% (18/33)',
+        serviceAces: 3,
+        notes: '第3・第4セットの勝負どころでバックアタックを連発。試合MVP。'
+      },
+      {
+        playerId: 'p-takahashi',
+        points: 14,
+        spikeSuccess: '46.1% (12/26)',
+        serviceAces: 1,
+        notes: 'ディグ成功率80%超え。守備でチームを支えるも終盤ペルージャのブロックに捕まる。'
+      }
+    ],
+    logs: [
+      {
+        id: 'ml-1',
+        matchId: 'm-2026-01',
+        playerId: 'p-ishikawa',
+        period: '第1セット 18-16',
+        description: '相手ジャンプサーブの崩れから、アンダーバンプのハイセットを3人ブロックの隙間（インナー）へ強烈に叩き込み流れを引き寄せる。',
+        type: 'KeyPlay'
+      },
+      {
+        id: 'ml-2',
+        matchId: 'm-2026-01',
+        playerId: 'p-ishikawa',
+        period: '第3セット 22-21',
+        description: 'ラリー中、あえて相手の最長身ブロックの手元を狙うブロックアウトを選択。冷静な状況判断。',
+        type: 'TacticalNote'
+      }
+    ]
+  }
+];
+
+const INITIAL_OBSERVATIONS: Observation[] = [
+  {
+    id: 'o-1',
+    targetType: 'Player',
+    targetId: 'p-ishikawa',
+    content: '「20点を超えてからのスパイク決定率はレギュラーシーズン平均で61.2%まで跳ね上がる。プレッシャー下でより打球のドライブが増す。」',
+    infoType: 'Statistic',
+    sourceName: 'VolleyStats Analytics',
+    sourceUrl: 'https://example.com/stats',
+    date: '2025-11-20'
+  },
+  {
+    id: 'o-2',
+    targetType: 'Player',
+    targetId: 'p-ishikawa',
+    content: '「祐希は空中でのタメが他の選手より0.1秒長い。だからブロッカーが先に落ちたのを確認してコースを変えることができる。」',
+    infoType: 'Quote',
+    authorOrSpeaker: '高橋 藍 (インタビューより)',
+    sourceName: '月刊バレーボール',
+    date: '2025-10-05'
+  },
+  {
+    id: 'o-3',
+    targetType: 'Player',
+    targetId: 'p-ishikawa',
+    content: 'サーブを打つ前のボールトス位置が以前より15cm前方に修正されており、これにより体重移動の乗ったノータッチエースが増加している。',
+    infoType: 'Observation',
+    authorOrSpeaker: 'アナリストアナリシス',
+    date: '2026-01-12'
+  }
+];
+
+export default function PlayersBaseApp() {
+  const [currentScreen, setCurrentScreen] = useState<'HOME' | 'SEARCH' | 'PLAYER' | 'TEAM' | 'COACH' | 'MATCH' | 'MY_PLAYERS' | 'ADMIN'>('HOME');
+  const [selectedEntityId, setSelectedEntityId] = useState<string>('p-ishikawa');
+  const [favoritePlayerIds, setFavoritePlayerIds] = useState<string[]>(['p-ishikawa']);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // App Central States
+  const [players, setPlayers] = useState<Player[]>(INITIAL_PLAYERS);
+  const [teams, setTeams] = useState<Team[]>(INITIAL_TEAMS);
+  const [coaches, setCoaches] = useState<Coach[]>(INITIAL_COACHES);
+  const [matches, setMatches] = useState<Match[]>(INITIAL_MATCHES);
+  const [observations, setObservations] = useState<Observation[]>(INITIAL_OBSERVATIONS);
+
+  // Toggle Favorites
+  const toggleFavorite = (playerId: string) => {
+    setFavoritePlayerIds(prev => 
+      prev.includes(playerId) ? prev.filter(id => id !== playerId) : [...prev, playerId]
+    );
+  };
+
+  // Navigations
+  const navigateToPlayer = (id: string) => {
+    setSelectedEntityId(id);
+    setCurrentScreen('PLAYER');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToTeam = (id: string) => {
+    setSelectedEntityId(id);
+    setCurrentScreen('TEAM');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToCoach = (id: string) => {
+    setSelectedEntityId(id);
+    setCurrentScreen('COACH');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const navigateToMatch = (id: string) => {
+    setSelectedEntityId(id);
+    setCurrentScreen('MATCH');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col selection:bg-slate-900 selection:text-white">
+      {/* GLOBAL HEADER */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+          {/* Logo */}
+          <div 
+            onClick={() => setCurrentScreen('HOME')}
+            className="flex items-center gap-3 cursor-pointer group flex-shrink-0"
+          >
+            <div className="w-9 h-9 bg-slate-900 text-white flex items-center justify-center font-bold text-lg tracking-wider rounded group-hover:bg-blue-600 transition duration-200 shadow-sm">
+              PB
+            </div>
+            <div>
+              <span className="text-lg font-black tracking-widest text-slate-900 block leading-none">PLAYERS BASE</span>
+              <span className="text-[10px] tracking-wider text-slate-500 font-medium hidden sm:block">SPORTS INTELLIGENCE NETWORK</span>
+            </div>
+          </div>
+
+          {/* Quick Search */}
+          <div className="hidden md:flex flex-1 max-w-md mx-4 relative">
+            <input 
+              type="text"
+              placeholder="選手、チーム、監督、試合を検索..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (currentScreen !== 'SEARCH') setCurrentScreen('SEARCH');
+              }}
+              className="w-full bg-slate-100 border border-slate-200 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="flex items-center gap-1 sm:gap-2 text-xs font-semibold tracking-wider">
+            <button 
+              onClick={() => setCurrentScreen('HOME')}
+              className={`px-3 py-2 rounded-md transition ${currentScreen === 'HOME' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              HOME
+            </button>
+            <button 
+              onClick={() => setCurrentScreen('SEARCH')}
+              className={`px-3 py-2 rounded-md transition ${currentScreen === 'SEARCH' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              SEARCH
+            </button>
+            <button 
+              onClick={() => setCurrentScreen('MY_PLAYERS')}
+              className={`px-3 py-2 rounded-md transition flex items-center gap-1.5 ${currentScreen === 'MY_PLAYERS' ? 'bg-slate-100 text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${favoritePlayerIds.length > 0 ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline">MY PLAYERS</span> ({favoritePlayerIds.length})
+            </button>
+            <button 
+              onClick={() => setCurrentScreen('ADMIN')}
+              className={`ml-1 sm:ml-2 px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition flex items-center gap-1.5 shadow-sm`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>ADMIN</span>
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {currentScreen === 'HOME' && (
+          <HomeScreen 
+            players={players} 
+            teams={teams} 
+            matches={matches} 
+            favoritePlayerIds={favoritePlayerIds}
+            onSelectPlayer={navigateToPlayer}
+            onSelectTeam={navigateToTeam}
+            onSelectMatch={navigateToMatch}
+            onGoToSearch={() => setCurrentScreen('SEARCH')}
+          />
+        )}
+
+        {currentScreen === 'SEARCH' && (
+          <SearchScreen 
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            players={players}
+            teams={teams}
+            coaches={coaches}
+            matches={matches}
+            onSelectPlayer={navigateToPlayer}
+            onSelectTeam={navigateToTeam}
+            onSelectCoach={navigateToCoach}
+            onSelectMatch={navigateToMatch}
+          />
+        )}
+
+        {currentScreen === 'PLAYER' && (
+          <PlayerDetailScreen 
+            playerId={selectedEntityId}
+            players={players}
+            teams={teams}
+            coaches={coaches}
+            matches={matches}
+            observations={observations}
+            isFavorite={favoritePlayerIds.includes(selectedEntityId)}
+            onToggleFavorite={() => toggleFavorite(selectedEntityId)}
+            onSelectTeam={navigateToTeam}
+            onSelectCoach={navigateToCoach}
+            onSelectMatch={navigateToMatch}
+          />
+        )}
+
+        {currentScreen === 'TEAM' && (
+          <TeamDetailScreen 
+            teamId={selectedEntityId}
+            teams={teams}
+            players={players}
+            coaches={coaches}
+            matches={matches}
+            onSelectPlayer={navigateToPlayer}
+            onSelectCoach={navigateToCoach}
+            onSelectMatch={navigateToMatch}
+          />
+        )}
+
+        {currentScreen === 'COACH' && (
+          <CoachDetailScreen 
+            coachId={selectedEntityId}
+            coaches={coaches}
+            teams={teams}
+            players={players}
+            onSelectTeam={navigateToTeam}
+            onSelectPlayer={navigateToPlayer}
+          />
+        )}
+
+        {currentScreen === 'MATCH' && (
+          <MatchDetailScreen 
+            matchId={selectedEntityId}
+            matches={matches}
+            teams={teams}
+            players={players}
+            observations={observations}
+            onSelectPlayer={navigateToPlayer}
+            onSelectTeam={navigateToTeam}
+          />
+        )}
+
+        {currentScreen === 'MY_PLAYERS' && (
+          <MyPlayersScreen 
+            favoritePlayerIds={favoritePlayerIds}
+            players={players}
+            teams={teams}
+            onSelectPlayer={navigateToPlayer}
+            onToggleFavorite={toggleFavorite}
+          />
+        )}
+
+        {currentScreen === 'ADMIN' && (
+          <AdminScreen 
+            players={players}
+            teams={teams}
+            coaches={coaches}
+            matches={matches}
+            observations={observations}
+            onAddPlayer={(p) => setPlayers([...players, p])}
+            onAddObservation={(obs) => setObservations([...observations, obs])}
+            onDeleteObservation={(id) => setObservations(observations.filter(o => o.id !== id))}
+          />
+        )}
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:text-left flex flex-col sm:flex-row justify-between items-center gap-6">
+          <div>
+            <div className="text-white font-bold tracking-widest text-lg flex items-center justify-center sm:justify-start gap-2">
+              <span className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-xs font-black">PB</span>
+              PLAYERS BASE
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Multi-Sport Cross-Referenced Intelligence & Knowledge Network</p>
+          </div>
+          <div className="text-xs text-slate-500">
+            © 2026 Players Base Project. Volleyball MVP Prototype.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function HomeScreen({ 
+  players, teams, matches, favoritePlayerIds, 
+  onSelectPlayer, onSelectTeam, onSelectMatch, onGoToSearch 
+}: {
+  players: Player[];
+  teams: Team[];
+  matches: Match[];
+  favoritePlayerIds: string[];
+  onSelectPlayer: (id: string) => void;
+  onSelectTeam: (id: string) => void;
+  onSelectMatch: (id: string) => void;
+  onGoToSearch: () => void;
+}) {
+  const favoritePlayers = players.filter(p => favoritePlayerIds.includes(p.id));
+
+  return (
+    <div className="space-y-10">
+      {/* HERO BANNER */}
+      <section className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-8 sm:p-12 relative overflow-hidden shadow-2xl border border-slate-800">
+        <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-blue-600/20 to-transparent opacity-60 pointer-events-none" />
+        <div className="relative z-10 max-w-2xl">
+          <div className="inline-flex items-center gap-2 bg-blue-500/20 text-blue-300 text-xs px-3 py-1 rounded-full mb-4 border border-blue-500/30 font-medium backdrop-blur-sm">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            <span>Volleyball Knowledge Graph Active</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
+            試合の文脈と、<br />選手の言葉を一つに繋ぐ。
+          </h1>
+          <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed">
+            Players Baseは単なる数値データではありません。選手の経歴、戦術的癖、試合中の出来事、そして思考を相互に関連付けて辿れるスポーツインテリジェンスデータベースです。
+          </p>
+          <div className="mt-6 flex flex-wrap gap-4">
+            <button 
+              onClick={onGoToSearch}
+              className="bg-white text-slate-900 hover:bg-slate-100 font-bold px-6 py-3 rounded-xl text-sm transition flex items-center gap-2 shadow-lg"
+            >
+              <Search className="w-4 h-4 text-slate-700" /> ネットワークを検索する
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* MY PLAYERS (QUICK ACCESS) */}
+      {favoritePlayers.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Heart className="w-5 h-5 text-rose-500 fill-current" /> My Players Quick Update
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {favoritePlayers.map(player => {
+              const team = teams.find(t => t.id === player.currentTeamId);
+              return (
+                <div 
+                  key={player.id} 
+                  onClick={() => onSelectPlayer(player.id)}
+                  className="bg-white p-5 rounded-xl border border-slate-200 hover:border-slate-400 hover:shadow-md transition cursor-pointer flex gap-5 items-center group"
+                >
+                  <img src={player.photo} alt={player.name} className="w-20 h-20 rounded-lg object-cover group-hover:scale-105 transition duration-300 shadow-sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-slate-500 font-semibold">{player.position} / #{player.number}</div>
+                    <div className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition truncate">{player.name}</div>
+                    <div className="text-xs text-slate-600 mt-0.5 truncate">{team?.name}</div>
+                    <div className="mt-2 text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md inline-block font-mono">
+                      決定率: <span className="font-bold text-blue-600">{player.stats.spikeSuccessRate}%</span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition flex-shrink-0" />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* RECENT MATCHES */}
+      <section>
+        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mb-4 flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-slate-700" /> Recent Featured Matches
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {matches.map(match => {
+            const homeTeam = teams.find(t => t.id === match.homeTeamId);
+            const awayTeam = teams.find(t => t.id === match.awayTeamId);
+            return (
+              <div 
+                key={match.id}
+                onClick={() => onSelectMatch(match.id)}
+                className="bg-white rounded-2xl border border-slate-200 p-6 hover:border-slate-400 transition cursor-pointer shadow-sm hover:shadow-md"
+              >
+                <div className="text-xs font-semibold text-slate-500 mb-3 flex justify-between items-center">
+                  <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md font-medium">{match.competition}</span>
+                  <span className="font-mono text-slate-400">{match.date}</span>
+                </div>
+                <div className="flex items-center justify-between py-4 border-y border-slate-100">
+                  <div className="text-center flex-1">
+                    <div className="font-bold text-base text-slate-900">{homeTeam?.name}</div>
+                    <div className="text-3xl font-black text-slate-900 mt-1">{match.homeScore}</div>
+                  </div>
+                  <div className="text-xs font-black text-slate-300 px-4">VS</div>
+                  <div className="text-center flex-1">
+                    <div className="font-bold text-base text-slate-900">{awayTeam?.name}</div>
+                    <div className="text-3xl font-black text-slate-900 mt-1">{match.awayScore}</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-slate-500 text-center font-mono bg-slate-50 py-1.5 rounded-lg border border-slate-100">
+                  セットスコア: {match.setScores}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* FEATURED PLAYERS */}
+      <section>
+        <h2 className="text-xl font-extrabold text-slate-900 tracking-tight mb-4 flex items-center gap-2">
+          <User className="w-5 h-5 text-slate-700" /> Featured Volleyball Players
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {players.map(player => (
+            <div 
+              key={player.id}
+              onClick={() => onSelectPlayer(player.id)}
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-xl transition duration-300 cursor-pointer group flex flex-col"
+            >
+              <div className="h-56 overflow-hidden relative bg-slate-100">
+                <img src={player.photo} alt={player.name} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <div className="absolute top-3 right-3 bg-slate-900/80 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-lg font-bold">
+                  #{player.number}
+                </div>
+                <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-md text-slate-900 text-xs px-2.5 py-1 rounded-md font-semibold shadow-sm">
+                  {player.position}
+                </div>
+              </div>
+              <div className="p-5 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition">{player.name}</h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{player.nameEn}</p>
+                </div>
+                <div className="mt-6 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                  <span className="text-slate-500 font-medium">アタック決定率</span>
+                  <span className="font-bold text-slate-900 font-mono text-sm">{player.stats.spikeSuccessRate}%</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SearchScreen({
+  searchQuery, setSearchQuery, players, teams, coaches, matches,
+  onSelectPlayer, onSelectTeam, onSelectCoach, onSelectMatch
+}: {
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  players: Player[];
+  teams: Team[];
+  coaches: Coach[];
+  matches: Match[];
+  onSelectPlayer: (id: string) => void;
+  onSelectTeam: (id: string) => void;
+  onSelectCoach: (id: string) => void;
+  onSelectMatch: (id: string) => void;
+}) {
+  const q = searchQuery.toLowerCase();
+
+  const filteredPlayers = players.filter(p => p.name.toLowerCase().includes(q) || p.nameEn.toLowerCase().includes(q) || p.position.includes(q));
+  const filteredTeams = teams.filter(t => t.name.toLowerCase().includes(q) || t.location.includes(q) || t.league.toLowerCase().includes(q));
+  const filteredCoaches = coaches.filter(c => c.name.toLowerCase().includes(q) || c.nationality.includes(q));
+  const filteredMatches = matches.filter(m => m.competition.toLowerCase().includes(q));
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">GLOBAL NETWORK SEARCH</h1>
+        <p className="text-sm text-slate-500 mt-1">選手、チーム、監督、試合データベースを一括で検索・参照します。</p>
+      </div>
+
+      <div className="relative">
+        <input 
+          type="text"
+          placeholder="名前、チーム、国籍、ポジション、大会名で検索..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-white border border-slate-300 rounded-2xl px-12 py-4 text-base focus:outline-none focus:ring-2 focus:ring-slate-900 shadow-sm transition"
+        />
+        <Search className="w-5 h-5 text-slate-400 absolute left-4 top-4.5" />
+      </div>
+
+      {/* RESULTS CATEGORIES */}
+      <div className="space-y-8">
+        {/* PLAYERS */}
+        <div>
+          <h2 className="text-xs font-bold text-slate-500 tracking-wider mb-3 uppercase flex items-center gap-2">
+            <User className="w-4 h-4 text-slate-700" /> PLAYERS ({filteredPlayers.length})
+          </h2>
+          {filteredPlayers.length === 0 ? (
+            <p className="text-sm text-slate-400 italic bg-white p-4 rounded-xl border border-slate-200">該当する選手が見つかりません</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {filteredPlayers.map(p => (
+                <div 
+                  key={p.id}
+                  onClick={() => onSelectPlayer(p.id)}
+                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer flex items-center gap-4 shadow-sm"
+                >
+                  <img src={p.photo} alt={p.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{p.name}</div>
+                    <div className="text-xs text-slate-500">{p.position} ({p.nationality})</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* TEAMS */}
+        <div>
+          <h2 className="text-xs font-bold text-slate-500 tracking-wider mb-3 uppercase flex items-center gap-2">
+            <Shield className="w-4 h-4 text-slate-700" /> TEAMS ({filteredTeams.length})
+          </h2>
+          {filteredTeams.length === 0 ? (
+            <p className="text-sm text-slate-400 italic bg-white p-4 rounded-xl border border-slate-200">該当するチームが見つかりません</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {filteredTeams.map(t => (
+                <div 
+                  key={t.id}
+                  onClick={() => onSelectTeam(t.id)}
+                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer flex items-center gap-4 shadow-sm"
+                >
+                  <img src={t.logo} alt={t.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{t.name}</div>
+                    <div className="text-xs text-slate-500">{t.league}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* COACHES */}
+        <div>
+          <h2 className="text-xs font-bold text-slate-500 tracking-wider mb-3 uppercase flex items-center gap-2">
+            <UserCheck className="w-4 h-4 text-slate-700" /> COACHES ({filteredCoaches.length})
+          </h2>
+          {filteredCoaches.length === 0 ? (
+            <p className="text-sm text-slate-400 italic bg-white p-4 rounded-xl border border-slate-200">該当する監督・コーチが見つかりません</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {filteredCoaches.map(c => (
+                <div 
+                  key={c.id}
+                  onClick={() => onSelectCoach(c.id)}
+                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer flex items-center gap-4 shadow-sm"
+                >
+                  <img src={c.photo} alt={c.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{c.name}</div>
+                    <div className="text-xs text-slate-500">{c.nationality}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* MATCHES */}
+        <div>
+          <h2 className="text-xs font-bold text-slate-500 tracking-wider mb-3 uppercase flex items-center gap-2">
+            <Activity className="w-4 h-4 text-slate-700" /> MATCHES ({filteredMatches.length})
+          </h2>
+          {filteredMatches.length === 0 ? (
+            <p className="text-sm text-slate-400 italic bg-white p-4 rounded-xl border border-slate-200">該当する試合情報が見つかりません</p>
+          ) : (
+            <div className="space-y-3">
+              {filteredMatches.map(m => (
+                <div 
+                  key={m.id}
+                  onClick={() => onSelectMatch(m.id)}
+                  className="bg-white p-4 rounded-xl border border-slate-200 hover:border-slate-900 transition cursor-pointer flex justify-between items-center shadow-sm"
+                >
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{m.competition}</div>
+                    <div className="text-xs text-slate-500">{m.date}</div>
+                  </div>
+                  <div className="font-bold text-slate-900 font-mono">
+                    {m.homeScore} - {m.awayScore}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlayerDetailScreen({
+  playerId, players, teams, coaches, matches, observations,
+  isFavorite, onToggleFavorite, onSelectTeam, onSelectCoach, onSelectMatch
+}: {
+  playerId: string;
+  players: Player[];
+  teams: Team[];
+  coaches: Coach[];
+  matches: Match[];
+  observations: Observation[];
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onSelectTeam: (id: string) => void;
+  onSelectCoach: (id: string) => void;
+  onSelectMatch: (id: string) => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'profile' | 'playstyle' | 'observations' | 'matches'>('profile');
+
+  const player = players.find(p => p.id === playerId) || players[0];
+  const team = teams.find(t => t.id === player.currentTeamId);
+  const playerObservations = observations.filter(o => o.targetType === 'Player' && o.targetId === player.id);
+  const playerMatches = matches.filter(m => m.playerStats.some(ps => ps.playerId === player.id));
+
+  return (
+    <div className="space-y-8">
+      {/* PLAYER HEADER CARD */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+          <img src={player.photo} alt={player.name} className="w-32 h-32 md:w-40 md:h-40 rounded-2xl object-cover shadow-md flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500 mb-1">
+              <span className="bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-full">{player.position}</span>
+              <span>#{player.number}</span>
+              <span>•</span>
+              <span>{player.nationality}</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">{player.name}</h1>
+            <p className="text-slate-400 font-mono text-sm">{player.nameEn}</p>
+
+            {team && (
+              <div 
+                onClick={() => onSelectTeam(team.id)}
+                className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-slate-800 hover:text-blue-600 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg transition"
+              >
+                <Shield className="w-4 h-4 text-slate-600" />
+                <span>{team.name}</span>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </div>
+            )}
+          </div>
+
+          <button 
+            onClick={onToggleFavorite}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-xs transition shadow-sm ${
+              isFavorite 
+                ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100' 
+                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
+            {isFavorite ? 'FAVORITE ADDED' : 'ADD TO FAVORITES'}
+          </button>
+        </div>
+
+        {/* TABS HEADER */}
+        <div className="flex border-b border-slate-200 mt-8 gap-6 text-sm font-bold">
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`pb-3 border-b-2 transition ${activeTab === 'profile' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+          >
+            プロファイル & データ
+          </button>
+          <button 
+            onClick={() => setActiveTab('playstyle')}
+            className={`pb-3 border-b-2 transition ${activeTab === 'playstyle' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+          >
+            プレースタイル分析
+          </button>
+          <button 
+            onClick={() => setActiveTab('observations')}
+            className={`pb-3 border-b-2 transition flex items-center gap-1.5 ${activeTab === 'observations' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+          >
+            考察・発言ログ ({playerObservations.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('matches')}
+            className={`pb-3 border-b-2 transition ${activeTab === 'matches' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+          >
+            関連試合 ({playerMatches.length})
+          </button>
+        </div>
+      </div>
+
+      {/* TAB CONTENT */}
+      {activeTab === 'profile' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* STATS HIGHLIGHTS */}
+          <div className="lg:col-span-1 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+            <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+              <Activity className="w-4 h-4 text-slate-700" /> 主要スタッツ
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>アタック決定率</span>
+                  <span className="font-bold text-slate-900 font-mono">{player.stats.spikeSuccessRate}%</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-blue-600 h-full rounded-full" style={{ width: `${player.stats.spikeSuccessRate}%` }} />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>サーブレシーブ返球率</span>
+                  <span className="font-bold text-slate-900 font-mono">{player.stats.receptionRate}%</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${player.stats.receptionRate}%` }} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">通算得点</div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{player.stats.points}</div>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">ブロック得点</div>
+                  <div className="text-xl font-black text-slate-900 font-mono mt-0.5">{player.stats.blockPoints}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BIO & CAREER */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+                <Info className="w-4 h-4 text-slate-700" /> 基本情報
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <span className="text-slate-400 block">生年月日</span>
+                  <span className="font-bold text-slate-800">{player.birthDate}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">出身地</span>
+                  <span className="font-bold text-slate-800">{player.birthPlace}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">身長 / 体重</span>
+                  <span className="font-bold text-slate-800">{player.height}cm / {player.weight}kg</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block">利き腕</span>
+                  <span className="font-bold text-slate-800">{player.dominantHand}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+                <BookOpen className="w-4 h-4 text-slate-700" /> キャリア・経歴
+              </h3>
+              <div className="space-y-3">
+                {player.career.map((c, index) => (
+                  <div key={index} className="flex gap-4 items-center text-xs">
+                    <span className="font-mono text-slate-400 w-24 flex-shrink-0">{c.period}</span>
+                    <span className="font-bold text-slate-800">{c.teamName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
+                <Trophy className="w-4 h-4 text-slate-700" /> 主な受賞歴・タイトル
+              </h3>
+              <ul className="space-y-2 text-xs">
+                {player.achievements.map((ach, index) => (
+                  <li key={index} className="flex items-center gap-2 text-slate-700">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <span>{ach}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'playstyle' && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-extrabold text-slate-900 mb-3 uppercase tracking-wider text-slate-500">Key Strengths</h3>
+            <div className="flex flex-wrap gap-2">
+              {player.playStyle.keyStrengths.map((str, i) => (
+                <span key={i} className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                  {str}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-amber-500" /> アタック戦術・特徴
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">{player.playStyle.attack}</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-blue-500" /> ディフェンス・レシーブ
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">{player.playStyle.defense}</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-500" /> サーブ戦術
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">{player.playStyle.serve}</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-500" /> メンタリティー・勝負所
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">{player.playStyle.mindset}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'observations' && (
+        <div className="space-y-4">
+          {playerObservations.length === 0 ? (
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-sm">
+              登録された考察・発言データがありません
+            </div>
+          ) : (
+            playerObservations.map(obs => (
+              <div key={obs.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="bg-slate-100 text-slate-800 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider">
+                    {obs.infoType}
+                  </span>
+                  <span className="text-slate-400 font-mono">{obs.date}</span>
+                </div>
+                <p className="text-sm text-slate-800 leading-relaxed font-medium">
+                  {obs.content}
+                </p>
+                <div className="text-xs text-slate-500 flex items-center justify-between pt-2 border-t border-slate-100">
+                  <span>{obs.authorOrSpeaker ? `発言/分析: ${obs.authorOrSpeaker}` : ''}</span>
+                  {obs.sourceName && <span className="italic">出典: {obs.sourceName}</span>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {activeTab === 'matches' && (
+        <div className="space-y-4">
+          {playerMatches.map(m => {
+            const stats = m.playerStats.find(ps => ps.playerId === player.id);
+            return (
+              <div 
+                key={m.id}
+                onClick={() => onSelectMatch(m.id)}
+                className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-slate-400 transition cursor-pointer shadow-sm"
+              >
+                <div className="flex justify-between items-center text-xs font-semibold text-slate-500 mb-2">
+                  <span>{m.competition}</span>
+                  <span className="font-mono">{m.date}</span>
+                </div>
+                <div className="text-base font-bold text-slate-900 mb-3">
+                  セットスコア: {m.setScores}
+                </div>
+                {stats && (
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-xs space-y-1">
+                    <div className="font-bold text-slate-800">個人成績: {stats.points}得点 (決定率: {stats.spikeSuccess})</div>
+                    <div className="text-slate-600">{stats.notes}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamDetailScreen({
+  teamId, teams, players, coaches, matches,
+  onSelectPlayer, onSelectCoach, onSelectMatch
+}: {
+  teamId: string;
+  teams: Team[];
+  players: Player[];
+  coaches: Coach[];
+  matches: Match[];
+  onSelectPlayer: (id: string) => void;
+  onSelectCoach: (id: string) => void;
+  onSelectMatch: (id: string) => void;
+}) {
+  const team = teams.find(t => t.id === teamId) || teams[0];
+  const coach = coaches.find(c => c.id === team.headCoachId);
+  const teamPlayers = players.filter(p => p.currentTeamId === team.id);
+  const teamMatches = matches.filter(m => m.homeTeamId === team.id || m.awayTeamId === team.id);
+
+  return (
+    <div className="space-y-8">
+      {/* TEAM HEADER */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+        <img src={team.logo} alt={team.name} className="w-28 h-28 rounded-2xl object-cover shadow-sm flex-shrink-0" />
+        <div className="flex-1">
+          <div className="text-xs font-semibold text-slate-500 mb-1">{team.league} • {team.location}</div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{team.name}</h1>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">{team.nameEn}</p>
+          <div className="mt-3 text-xs text-slate-600">創設: {team.established}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* TEAM STYLE */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-base font-extrabold text-slate-900 mb-4 border-b border-slate-100 pb-3">チームスタイル分析</h3>
+            <div className="space-y-4 text-xs">
+              <div>
+                <span className="font-bold text-slate-900 block mb-1">オフェンス戦術</span>
+                <p className="text-slate-600 leading-relaxed">{team.teamStyle.attack}</p>
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 block mb-1">ディフェンス・ブロック構造</span>
+                <p className="text-slate-600 leading-relaxed">{team.teamStyle.defense}</p>
+              </div>
+              <div>
+                <span className="font-bold text-slate-900 block mb-1">サーブ＆ブロック戦術</span>
+                <p className="text-slate-600 leading-relaxed">{team.teamStyle.serveBlock}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* SQUAD PLAYERS */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-base font-extrabold text-slate-900 mb-4 border-b border-slate-100 pb-3">所属選手 ({teamPlayers.length})</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {teamPlayers.map(p => (
+                <div 
+                  key={p.id}
+                  onClick={() => onSelectPlayer(p.id)}
+                  className="p-3 border border-slate-200 rounded-xl hover:border-slate-900 cursor-pointer flex items-center gap-3 transition"
+                >
+                  <img src={p.photo} alt={p.name} className="w-10 h-10 rounded-full object-cover" />
+                  <div>
+                    <div className="font-bold text-slate-900 text-xs">{p.name}</div>
+                    <div className="text-[10px] text-slate-500">#{p.number} • {p.position}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* SIDEBAR: COACH & TITLES */}
+        <div className="space-y-6">
+          {coach && (
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">HEAD COACH</h3>
+              <div 
+                onClick={() => onSelectCoach(coach.id)}
+                className="flex items-center gap-4 cursor-pointer group"
+              >
+                <img src={coach.photo} alt={coach.name} className="w-14 h-14 rounded-full object-cover group-hover:opacity-90 transition" />
+                <div>
+                  <div className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition">{coach.name}</div>
+                  <div className="text-xs text-slate-500">{coach.nationality}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">TITLES & HONORS</h3>
+            <ul className="space-y-2 text-xs">
+              {team.titles.map((title, i) => (
+                <li key={i} className="flex items-center gap-2 text-slate-700">
+                  <Trophy className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                  <span>{title}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CoachDetailScreen({
+  coachId, coaches, teams, players,
+  onSelectTeam, onSelectPlayer
+}: {
+  coachId: string;
+  coaches: Coach[];
+  teams: Team[];
+  players: Player[];
+  onSelectTeam: (id: string) => void;
+  onSelectPlayer: (id: string) => void;
+}) {
+  const coach = coaches.find(c => c.id === coachId) || coaches[0];
+  const currentTeam = teams.find(t => t.id === coach.currentTeamId);
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center">
+        <img src={coach.photo} alt={coach.name} className="w-32 h-32 rounded-2xl object-cover shadow-sm flex-shrink-0" />
+        <div className="flex-1">
+          <div className="text-xs font-semibold text-slate-500 mb-1">監督 / HEAD COACH • {coach.nationality}</div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{coach.name}</h1>
+          <p className="text-xs text-slate-400 font-mono mt-0.5">{coach.nameEn}</p>
+          {currentTeam && (
+            <div 
+              onClick={() => onSelectTeam(currentTeam.id)}
+              className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-800 hover:text-blue-600 cursor-pointer bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg transition"
+            >
+              <Shield className="w-3.5 h-3.5 text-slate-600" />
+              <span>就任中: {currentTeam.name}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-base font-extrabold text-slate-900 mb-3 border-b border-slate-100 pb-3">指導哲学</h3>
+          <p className="text-xs text-slate-700 leading-relaxed font-medium">{coach.coachingPhilosophy}</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-base font-extrabold text-slate-900 mb-3 border-b border-slate-100 pb-3">戦術的スタイル</h3>
+          <p className="text-xs text-slate-700 leading-relaxed">{coach.tacticalStyle}</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 className="text-base font-extrabold text-slate-900 mb-3 border-b border-slate-100 pb-3">指導経歴</h3>
+          <div className="space-y-2">
+            {coach.coachingCareer.map((c, i) => (
+              <div key={i} className="flex gap-4 text-xs">
+                <span className="font-mono text-slate-400 w-24">{c.period}</span>
+                <span className="font-bold text-slate-800">{c.teamName} ({c.role})</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchDetailScreen({
+  matchId, matches, teams, players, observations,
+  onSelectPlayer, onSelectTeam
+}: {
+  matchId: string;
+  matches: Match[];
+  teams: Team[];
+  players: Player[];
+  observations: Observation[];
+  onSelectPlayer: (id: string) => void;
+  onSelectTeam: (id: string) => void;
+}) {
+  const match = matches.find(m => m.id === matchId) || matches[0];
+  const homeTeam = teams.find(t => t.id === match.homeTeamId);
+  const awayTeam = teams.find(t => t.id === match.awayTeamId);
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      {/* MATCH HEADER CARD */}
+      <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-xl">
+        <div className="text-xs text-slate-400 mb-4 flex justify-between">
+          <span>{match.competition}</span>
+          <span className="font-mono">{match.date}</span>
+        </div>
+        <div className="flex items-center justify-between py-6 border-y border-slate-800">
+          <div className="text-center flex-1 cursor-pointer" onClick={() => homeTeam && onSelectTeam(homeTeam.id)}>
+            <div className="font-bold text-lg text-slate-100 hover:text-blue-400 transition">{homeTeam?.name}</div>
+            <div className="text-4xl font-black mt-2">{match.homeScore}</div>
+          </div>
+          <div className="text-sm font-black text-slate-500 px-6">VS</div>
+          <div className="text-center flex-1 cursor-pointer" onClick={() => awayTeam && onSelectTeam(awayTeam.id)}>
+            <div className="font-bold text-lg text-slate-100 hover:text-blue-400 transition">{awayTeam?.name}</div>
+            <div className="text-4xl font-black mt-2">{match.awayScore}</div>
+          </div>
+        </div>
+        <div className="mt-4 text-xs text-slate-400 text-center font-mono">
+          セット詳細: {match.setScores}
+        </div>
+      </div>
+
+      {/* MATCH LOGS & KEY PLAYS */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-slate-700" /> 試合進行・キープレイログ
+        </h3>
+        <div className="space-y-3">
+          {match.logs.map(log => {
+            const player = players.find(p => p.id === log.playerId);
+            return (
+              <div key={log.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-xs space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-mono font-bold text-slate-900">{log.period}</span>
+                  <span className="bg-slate-200 text-slate-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {log.type}
+                  </span>
+                </div>
+                <p className="text-slate-700 leading-relaxed">{log.description}</p>
+                {player && (
+                  <div 
+                    onClick={() => onSelectPlayer(player.id)}
+                    className="inline-flex items-center gap-1 font-bold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    <span>キープレイヤー: {player.name}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* PLAYER STATS TABLE */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">注目選手スタッツ</h3>
+        <div className="space-y-3">
+          {match.playerStats.map((ps, i) => {
+            const player = players.find(p => p.id === ps.playerId);
+            return (
+              <div key={i} className="p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
+                <div className="flex items-center gap-3 cursor-pointer" onClick={() => player && onSelectPlayer(player.id)}>
+                  {player && <img src={player.photo} alt={player.name} className="w-10 h-10 rounded-full object-cover" />}
+                  <div>
+                    <div className="font-bold text-slate-900 hover:text-blue-600 transition">{player?.name || '未知の選手'}</div>
+                    <div className="text-slate-500">{ps.notes}</div>
+                  </div>
+                </div>
+                <div className="flex gap-4 font-mono text-slate-800 font-bold bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                  <span>得点: {ps.points}</span>
+                  <span>決定率: {ps.spikeSuccess}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MyPlayersScreen({
+  favoritePlayerIds, players, teams, onSelectPlayer, onToggleFavorite
+}: {
+  favoritePlayerIds: string[];
+  players: Player[];
+  teams: Team[];
+  onSelectPlayer: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
+}) {
+  const favoritePlayers = players.filter(p => favoritePlayerIds.includes(p.id));
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <Heart className="w-6 h-6 text-rose-500 fill-current" /> MY PLAYERS WATCHLIST
+        </h1>
+        <p className="text-sm text-slate-500 mt-1">お気に入りに登録した選手のインテリジェンスと最新動向を監視します。</p>
+      </div>
+
+      {favoritePlayers.length === 0 ? (
+        <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
+          <p className="text-slate-500 text-sm">お気に入り登録されている選手はいません。</p>
+          <p className="text-xs text-slate-400">選手詳細ページまたは検索画面からハートアイコンを押して追加できます。</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {favoritePlayers.map(player => {
+            const team = teams.find(t => t.id === player.currentTeamId);
+            return (
+              <div 
+                key={player.id}
+                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative flex flex-col justify-between"
+              >
+                <div className="flex gap-4 items-center">
+                  <img src={player.photo} alt={player.name} className="w-16 h-16 rounded-xl object-cover" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-slate-400 font-semibold">{player.position}</div>
+                    <h3 
+                      onClick={() => onSelectPlayer(player.id)}
+                      className="text-lg font-bold text-slate-900 hover:text-blue-600 transition cursor-pointer truncate"
+                    >
+                      {player.name}
+                    </h3>
+                    <div className="text-xs text-slate-600 truncate">{team?.name}</div>
+                  </div>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
+                  <span className="font-mono text-slate-600">決定率: {player.stats.spikeSuccessRate}%</span>
+                  <button 
+                    onClick={() => onToggleFavorite(player.id)}
+                    className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> 削除
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminScreen({
+  players, teams, coaches, matches, observations,
+  onAddPlayer, onAddObservation, onDeleteObservation
+}: {
+  players: Player[];
+  teams: Team[];
+  coaches: Coach[];
+  matches: Match[];
+  observations: Observation[];
+  onAddPlayer: (player: Player) => void;
+  onAddObservation: (obs: Observation) => void;
+  onDeleteObservation: (id: string) => void;
+}) {
+  const [activeAdminTab, setActiveAdminTab] = useState<'add_player' | 'add_observation' | 'manage_observations'>('add_player');
+
+  // New Player Form State
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newPlayerNameEn, setNewPlayerNameEn] = useState('');
+  const [newPlayerPosition, setNewPlayerPosition] = useState('アウトサイドヒッター');
+  const [newPlayerHeight, setNewPlayerHeight] = useState(190);
+  const [newPlayerNationality, setNewPlayerNationality] = useState('日本');
+  const [newPlayerTeamId, setNewPlayerTeamId] = useState('t-perugia');
+
+  // New Observation Form State
+  const [obsTargetId, setObsTargetId] = useState(players[0]?.id || 'p-ishikawa');
+  const [obsContent, setObsContent] = useState('');
+  const [obsType, setObsType] = useState<InfoType>('Observation');
+  const [obsSource, setObsSource] = useState('');
+  const [obsAuthor, setObsAuthor] = useState('');
+
+  const handleCreatePlayer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlayerName) return;
+
+    const player: Player = {
+      id: `p-${Date.now()}`,
+      name: newPlayerName,
+      nameEn: newPlayerNameEn || 'Unknown Player',
+      sportId: 'volleyball',
+      photo: 'https://images.unsplash.com/photo-1519766304817-4f37bda74a29?auto=format&fit=crop&w=600&q=80',
+      birthDate: '2000-01-01',
+      birthPlace: '日本',
+      height: Number(newPlayerHeight),
+      weight: 80,
+      position: newPlayerPosition,
+      dominantHand: '右',
+      nationality: newPlayerNationality,
+      currentTeamId: newPlayerTeamId,
+      number: 99,
+      career: [{ period: '2024-', teamName: '新規所属チーム' }],
+      achievements: ['新規登録選手'],
+      stats: { points: 0, spikeSuccessRate: 45.0, blockPoints: 0, serveEfficiency: 10.0, receptionRate: 50.0 },
+      playStyle: {
+        keyStrengths: ['高いジャンプ力', '力強いアタック'],
+        attack: 'パワフルなアタック。',
+        defense: '安定したレシーブ力。',
+        serve: '強力なサーブ。',
+        mindset: '冷静なプレー判断。'
+      }
+    };
+
+    onAddPlayer(player);
+    setNewPlayerName('');
+    setNewPlayerNameEn('');
+    alert('新しい選手が正常に追加されました！');
+  };
+
+  const handleCreateObservation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!obsContent) return;
+
+    const obs: Observation = {
+      id: `o-${Date.now()}`,
+      targetType: 'Player',
+      targetId: obsTargetId,
+      content: obsContent,
+      infoType: obsType,
+      sourceName: obsSource || '内部アナリスト',
+      authorOrSpeaker: obsAuthor || 'データアナリスト',
+      date: new Date().toISOString().split('T')[0]
+    };
+
+    onAddObservation(obs);
+    setObsContent('');
+    setObsSource('');
+    setObsAuthor('');
+    alert('新しい考察・分析ノートが追加されました！');
+  };
+
+  return (
+    <div className="space-y-8 max-w-4xl mx-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <Shield className="w-6 h-6 text-slate-800" /> PLAYERS BASE ADMIN PANEL
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">マスターデータの追加および考察・発言ログの管理を行います。</p>
+        </div>
+      </div>
+
+      {/* ADMIN NAVIGATION */}
+      <div className="flex border-b border-slate-200 gap-6 text-sm font-bold">
+        <button 
+          onClick={() => setActiveAdminTab('add_player')}
+          className={`pb-3 border-b-2 transition ${activeAdminTab === 'add_player' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+        >
+          新規選手登録
+        </button>
+        <button 
+          onClick={() => setActiveAdminTab('add_observation')}
+          className={`pb-3 border-b-2 transition ${activeAdminTab === 'add_observation' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+        >
+          考察・分析ノート追加
+        </button>
+        <button 
+          onClick={() => setActiveAdminTab('manage_observations')}
+          className={`pb-3 border-b-2 transition ${activeAdminTab === 'manage_observations' ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-700'}`}
+        >
+          登録ログ一覧 ({observations.length})
+        </button>
+      </div>
+
+      {/* ADD PLAYER TAB */}
+      {activeAdminTab === 'add_player' && (
+        <form onSubmit={handleCreatePlayer} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">選手基本情報入力</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">選手名 (日本語)</label>
+              <input 
+                type="text" 
+                required 
+                placeholder="例: 高橋 健" 
+                value={newPlayerName} 
+                onChange={e => setNewPlayerName(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">選手名 (アルファベット)</label>
+              <input 
+                type="text" 
+                placeholder="例: Ken Takahashi" 
+                value={newPlayerNameEn} 
+                onChange={e => setNewPlayerNameEn(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">ポジション</label>
+              <select 
+                value={newPlayerPosition} 
+                onChange={e => setNewPlayerPosition(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                <option value="アウトサイドヒッター">アウトサイドヒッター</option>
+                <option value="オポジット">オポジット</option>
+                <option value="ミドルブロッカー">ミドルブロッカー</option>
+                <option value="セッター">セッター</option>
+                <option value="リベロ">リベロ</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">身長 (cm)</label>
+              <input 
+                type="number" 
+                value={newPlayerHeight} 
+                onChange={e => setNewPlayerHeight(Number(e.target.value))} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">国籍</label>
+              <input 
+                type="text" 
+                value={newPlayerNationality} 
+                onChange={e => setNewPlayerNationality(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">所属チーム</label>
+              <select 
+                value={newPlayerTeamId} 
+                onChange={e => setNewPlayerTeamId(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                {teams.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <button 
+            type="submit" 
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> 選手をマスターに追加
+          </button>
+        </form>
+      )}
+
+      {/* ADD OBSERVATION TAB */}
+      {activeAdminTab === 'add_observation' && (
+        <form onSubmit={handleCreateObservation} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+          <h3 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3">インテリジェンス・考察追加</h3>
+          <div className="space-y-4 text-xs">
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">対象選手</label>
+              <select 
+                value={obsTargetId} 
+                onChange={e => setObsTargetId(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                {players.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">情報ソース分類 (Information Type)</label>
+              <select 
+                value={obsType} 
+                onChange={e => setObsType(e.target.value as InfoType)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 font-bold"
+              >
+                <option value="Official">Official (公式発表)</option>
+                <option value="Statistic">Statistic (データ・統計)</option>
+                <option value="Interview">Interview (インタビュー・取材)</option>
+                <option value="Observation">Observation (現場観察・定性分析)</option>
+                <option value="Analysis">Analysis (深層戦術解析)</option>
+                <option value="Quote">Quote (本人/関係者発言)</option>
+                <option value="Media">Media (メディア報道)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-600 font-bold mb-1">考察・分析内容</label>
+              <textarea 
+                required 
+                rows={4} 
+                placeholder="戦術的特徴、フォームの変化、発言などを入力..." 
+                value={obsContent} 
+                onChange={e => setObsContent(e.target.value)} 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-slate-600 font-bold mb-1">出典・媒体名 (任意)</label>
+                <input 
+                  type="text" 
+                  placeholder="例: 月刊バレーボール" 
+                  value={obsSource} 
+                  onChange={e => setObsSource(e.target.value)} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-600 font-bold mb-1">発言者・分析者 (任意)</label>
+                <input 
+                  type="text" 
+                  placeholder="例: アナリスト" 
+                  value={obsAuthor} 
+                  onChange={e => setObsAuthor(e.target.value)} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
+            </div>
+          </div>
+          <button 
+            type="submit" 
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl text-sm transition shadow-md flex items-center justify-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> 考察ノートを追加
+          </button>
+        </form>
+      )}
+
+      {/* MANAGE OBSERVATIONS TAB */}
+      {activeAdminTab === 'manage_observations' && (
+        <div className="space-y-4">
+          {observations.map(obs => {
+            const player = players.find(p => p.id === obs.targetId);
+            return (
+              <div key={obs.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between gap-4 text-xs">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">{player?.name || '対象不明'}</span>
+                    <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-bold">{obs.infoType}</span>
+                    <span className="text-slate-400 font-mono">{obs.date}</span>
+                  </div>
+                  <p className="text-slate-700">{obs.content}</p>
+                </div>
+                <button 
+                  onClick={() => onDeleteObservation(obs.id)}
+                  className="text-rose-500 hover:text-rose-700 font-bold self-start sm:self-center flex items-center gap-1"
+                >
+                  <Trash2 className="w-4 h-4" /> 削除
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
